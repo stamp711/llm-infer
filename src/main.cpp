@@ -1,74 +1,48 @@
+#include <CLI/CLI.hpp>
 #include <iostream>
-#include <vector>
-#include <memory>
-#include <chrono>
-#include <cuda_runtime.h>
+#include <gguf.hpp>
 
-void checkCudaError(cudaError_t error, const char* msg) {
-    if (error != cudaSuccess) {
-        std::cerr << "CUDA Error: " << msg << " - " << cudaGetErrorString(error) << std::endl;
-        exit(1);
-    }
+void print_metadata_value(const MetadataValue& value) {
+    std::visit([](const auto& v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, MetadataArray>) {
+            std::cout << "[array of " << v.size() << " elements]";
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            std::cout << "\"" << v << "\"";
+        } else if constexpr (std::is_same_v<T, bool>) {
+            std::cout << (v ? "true" : "false");
+        } else {
+            std::cout << v;
+        }
+    }, value.inner);
 }
 
-void printCudaInfo() {
-    int deviceCount;
-    checkCudaError(cudaGetDeviceCount(&deviceCount), "Getting device count");
+int main(int argc, char** argv) {
+    CLI::App app{"GGUF file inspector"};
     
-    std::cout << "CUDA Device Count: " << deviceCount << std::endl;
+    std::string filename;
+    app.add_option("file", filename, "GGUF file to inspect")->required();
     
-    for (int i = 0; i < deviceCount; ++i) {
-        cudaDeviceProp prop;
-        checkCudaError(cudaGetDeviceProperties(&prop, i), "Getting device properties");
-        
-        std::cout << "\nDevice " << i << ": " << prop.name << std::endl;
-        std::cout << "  Compute Capability: " << prop.major << "." << prop.minor << std::endl;
-        std::cout << "  Total Global Memory: " << prop.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
-        std::cout << "  SM Count: " << prop.multiProcessorCount << std::endl;
-        std::cout << "  Max Threads per Block: " << prop.maxThreadsPerBlock << std::endl;
-        std::cout << "  Warp Size: " << prop.warpSize << std::endl;
-    }
-}
-
-class LLMInference {
-public:
-    LLMInference() {
-        std::cout << "Initializing LLM Inference Engine..." << std::endl;
-        checkCudaError(cudaSetDevice(0), "Setting CUDA device");
-    }
-    
-    ~LLMInference() {
-        cleanup();
-    }
-    
-    void run() {
-        std::cout << "\nRunning LLM Inference..." << std::endl;
-        
-        auto start = std::chrono::high_resolution_clock::now();
-        
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        
-        std::cout << "Inference completed in " << duration.count() << " ms" << std::endl;
-    }
-    
-private:
-    void cleanup() {
-        cudaDeviceReset();
-    }
-};
-
-int main() {
-    std::cout << "LLM Inference Engine v0.1" << std::endl;
-    std::cout << "=========================" << std::endl;
-    
-    printCudaInfo();
+    CLI11_PARSE(app, argc, argv);
     
     try {
-        LLMInference engine;
-        engine.run();
+        GGUF gguf(filename);
+        
+        std::cout << "GGUF File Information\n";
+        std::cout << "=====================\n";
+        std::cout << "File: " << filename << "\n";
+        std::cout << "Tensor count: " << gguf.tensor_count() << "\n\n";
+        
+        std::cout << "Metadata:\n";
+        std::cout << "---------\n";
+        for (const auto& kv : gguf.metadata_kv()) {
+            std::cout << kv.key << ": ";
+            print_metadata_value(kv.value);
+            std::cout << "\n";
+        }
+        
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
     
