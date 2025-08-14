@@ -133,6 +133,15 @@ class GGUF {
     [[nodiscard]] std::uint64_t tensor_count() const noexcept { return tensor_count_; }
     [[nodiscard]] const std::vector<MetadataKeyValue> &metadata_kv() const noexcept { return metadata_kv_; }
 
+    [[nodiscard]] const MetadataValue *get_metadata(const std::string &key) const noexcept {
+        for (const auto &kv : metadata_kv_) {
+            if (kv.key == key) {
+                return &kv.value;
+            }
+        }
+        return nullptr;
+    }
+
    private:
     mio::mmap_source mmap_;
 

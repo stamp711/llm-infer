@@ -7,30 +7,6 @@ constexpr uint32_t GGUF_MAGIC = 0x46554747;
 
 namespace {
 
-struct __attribute__((packed)) GGUFHeaderWithoutMetadata {
-    // Magic number to announce that this is a GGUF file.
-    // Must be `GGUF` at the byte level: `0x47` `0x47` `0x55` `0x46`.
-    // Your executor might do little-endian byte order, so it might be
-    // check for 0x46554747 and letting the endianness cancel out.
-    // Consider being *very* explicit about the byte order here.
-    uint32_t magic;
-    // The version of the format implemented.
-    // Must be `3` for version described in this spec, which introduces big-endian support.
-    //
-    // This version should only be increased for structural changes to the format.
-    // Changes that do not affect the structure of the file should instead update the metadata
-    // to signify the change.
-    uint32_t version;
-    // The number of tensors in the file.
-    // This is explicit, instead of being included in the metadata, to ensure it is always present
-    // for loading the tensors.
-    uint64_t tensor_count;
-    // The number of metadata key-value pairs.
-    uint64_t metadata_kv_count;
-    // The metadata key-value pairs.
-    // gguf_metadata_kv_t metadata_kv[metadata_kv_count];
-};
-
 std::string parse_gguf_string(std::span<const char>& span) {
     std::uint64_t length = *reinterpret_cast<const std::uint64_t*>(span.data());
     span = span.subspan(sizeof(length));
@@ -133,6 +109,30 @@ MetadataKeyValue parse_metadata_kv(std::span<const char>& span) {
 // TensorInfo TensorInfo::parse(const std::byte* data) {}
 
 GGUF::GGUF(const std::filesystem::path& path) : mmap_(path.c_str()) {
+    struct __attribute__((packed)) GGUFHeaderWithoutMetadata {
+        // Magic number to announce that this is a GGUF file.
+        // Must be `GGUF` at the byte level: `0x47` `0x47` `0x55` `0x46`.
+        // Your executor might do little-endian byte order, so it might be
+        // check for 0x46554747 and letting the endianness cancel out.
+        // Consider being *very* explicit about the byte order here.
+        uint32_t magic;
+        // The version of the format implemented.
+        // Must be `3` for version described in this spec, which introduces big-endian support.
+        //
+        // This version should only be increased for structural changes to the format.
+        // Changes that do not affect the structure of the file should instead update the metadata
+        // to signify the change.
+        uint32_t version;
+        // The number of tensors in the file.
+        // This is explicit, instead of being included in the metadata, to ensure it is always present
+        // for loading the tensors.
+        uint64_t tensor_count;
+        // The number of metadata key-value pairs.
+        uint64_t metadata_kv_count;
+        // The metadata key-value pairs.
+        // gguf_metadata_kv_t metadata_kv[metadata_kv_count];
+    };
+
     if (mmap_.size() < sizeof(GGUFHeaderWithoutMetadata)) {
         throw std::runtime_error("Invalid GGUF file");
     }

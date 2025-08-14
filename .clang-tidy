@@ -5,6 +5,7 @@ Checks: >-
   readability-*,
   bugprone-*,
   cppcoreguidelines-*,
+  -bugprone-easily-swappable-parameters,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-reinterpret-cast,
