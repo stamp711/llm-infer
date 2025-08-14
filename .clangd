@@ -1,23 +1,2 @@
-Diagnostics:
-  ClangTidy:
-    Add: [
-      modernize-*,
-      performance-*,
-      readability-*,
-      bugprone-*,
-      cppcoreguidelines-*,
-    ]
-    Remove: [
-      cppcoreguidelines-avoid-magic-numbers,
-      cppcoreguidelines-pro-bounds-pointer-arithmetic,
-      cppcoreguidelines-pro-type-reinterpret-cast,
-      cppcoreguidelines-pro-type-vararg,
-      modernize-use-trailing-return-type,
-      readability-identifier-length,
-      readability-magic-numbers,
-    ]
-    CheckOptions:
-      readability-braces-around-statements.ShortStatementLines: 1
-
 Hover:
   ShowAKA: Yes  # Show underlying type in hover tooltips
