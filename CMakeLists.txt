@@ -29,6 +29,9 @@ find_package(magic_enum CONFIG REQUIRED)
 # Common architectures: 75 (RTX 20xx), 80 (A100), 86 (RTX 30xx), 89 (RTX 40xx)
 set(CMAKE_CUDA_ARCHITECTURES 75 80 86 89)
 
+# Add safetensors subdirectory
+add_subdirectory(safetensors)
+
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
@@ -45,7 +48,7 @@ add_executable(llm_infer ${SOURCES})
 
 set_target_properties(llm_infer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-# Link CUDA, OpenMP, mio, CLI11, magic_enum
+# Link CUDA, OpenMP, mio, CLI11, magic_enum, safetensors
 target_link_libraries(
     llm_infer
     CUDA::cudart
@@ -55,6 +58,7 @@ target_link_libraries(
     CLI11::CLI11
     mio::mio
     magic_enum::magic_enum
+    safetensors
 )
 
 # Compiler flags
