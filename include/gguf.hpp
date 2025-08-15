@@ -1,17 +1,19 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <mio/mmap.hpp>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
+#include "llama.hpp"
+
 // https://github.com/ggml-org/ggml/blob/master/docs/gguf.md
 
 // NOLINTNEXTLINE
-enum class GGMLType : uint32_t {
+enum class GGMLType : std::uint32_t {
     GGML_TYPE_F32 = 0,
     GGML_TYPE_F16 = 1,
     GGML_TYPE_Q4_0 = 2,
@@ -46,7 +48,7 @@ enum class GGMLType : uint32_t {
 };
 
 // NOLINTNEXTLINE
-enum GGUFMetadataValueType : uint32_t {
+enum GGUFMetadataValueType : std::uint32_t {
     // The value is a 8-bit unsigned integer.
     GGUF_METADATA_VALUE_TYPE_UINT8 = 0,
     // The value is a 8-bit signed integer.
@@ -93,11 +95,9 @@ struct MetadataKeyValue {
     MetadataValue value;
 };
 
-class TensorInfo {
+struct TensorInfo {
    public:
-    TensorInfo() = delete;
-
-    static TensorInfo parse(const std::byte *data);
+    TensorInfo(std::span<const char> &span);
 
     // The name of the tensor. It is a standard GGUF string, with the caveat that
     // it must be at most 64 bytes long.
@@ -118,6 +118,8 @@ class TensorInfo {
     //
     // Must be a multiple of `ALIGNMENT`. That is, `align_offset(offset) == offset`.
     uint64_t offset;
+
+    const std::byte *data = nullptr;
 };
 
 class GGUF {
@@ -132,6 +134,11 @@ class GGUF {
 
     [[nodiscard]] std::uint64_t tensor_count() const noexcept { return tensor_count_; }
     [[nodiscard]] const std::vector<MetadataKeyValue> &metadata_kv() const noexcept { return metadata_kv_; }
+    [[nodiscard]] const std::vector<TensorInfo> &tensor_infos() const noexcept { return tensor_infos_; }
+
+    [[nodiscard]] const std::string &architecture() const noexcept { return architecture_; }
+    [[nodiscard]] std::uint32_t quantization_version() const noexcept { return quantization_version_; }
+    [[nodiscard]] std::uint32_t alignment() const noexcept { return alignment_; }
 
     [[nodiscard]] const MetadataValue *get_metadata(const std::string &key) const noexcept {
         for (const auto &kv : metadata_kv_) {
@@ -141,6 +148,24 @@ class GGUF {
         }
         return nullptr;
     }
+    
+    template <typename T>
+    [[nodiscard]] std::optional<T> get_metadata_value(const std::string &key) const noexcept {
+        const auto* value = get_metadata(key);
+        if (!value) return std::nullopt;
+        
+        if (const auto* ptr = std::get_if<T>(&value->inner)) {
+            return *ptr;
+        }
+        return std::nullopt;
+    }
+    
+    template <typename T>
+    [[nodiscard]] T get_metadata_value_or(const std::string &key, T default_value) const noexcept {
+        return get_metadata_value<T>(key).value_or(default_value);
+    }
+    
+    [[nodiscard]] std::optional<LlamaConfig> parse_llama_config() const;
 
    private:
     mio::mmap_source mmap_;
@@ -150,15 +175,12 @@ class GGUF {
     // The metadata key-value pairs.
     std::vector<MetadataKeyValue> metadata_kv_;  // don't parse value for now, store in bytes
 
-    // Tensor data.
-    //
-    // This is arbitrary binary data corresponding to the weights of the model. This data should be close
-    // or identical to the data in the original model file, but may be different due to quantization or
-    // other optimizations for inference. Any such deviations should be recorded in the metadata or as
-    // part of the architecture definition.
-    //
-    // Each tensor's data must be stored within this array, and located through its `tensor_infos` entry.
-    // The offset of each tensor's data must be a multiple of `ALIGNMENT`, and the space between tensors
-    // should be padded to `ALIGNMENT` bytes.
-    const char *tensor_data_;
+    std::vector<TensorInfo> tensor_infos_;
+
+    const std::byte *tensor_data_;
+
+    // Required metadata fields
+    std::string architecture_;
+    std::uint32_t quantization_version_;
+    std::uint32_t alignment_;
 };

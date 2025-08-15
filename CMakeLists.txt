@@ -23,6 +23,7 @@ find_package(CUDAToolkit REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(CLI11 REQUIRED)
 find_package(mio REQUIRED)
+find_package(magic_enum CONFIG REQUIRED)
 
 # Set CUDA architectures
 # Common architectures: 75 (RTX 20xx), 80 (A100), 86 (RTX 30xx), 89 (RTX 40xx)
@@ -44,7 +45,7 @@ add_executable(llm_infer ${SOURCES})
 
 set_target_properties(llm_infer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-# Link CUDA, OpenMP, mio, CLI11
+# Link CUDA, OpenMP, mio, CLI11, magic_enum
 target_link_libraries(
     llm_infer
     CUDA::cudart
@@ -53,6 +54,7 @@ target_link_libraries(
     OpenMP::OpenMP_CXX
     CLI11::CLI11
     mio::mio
+    magic_enum::magic_enum
 )
 
 # Compiler flags
