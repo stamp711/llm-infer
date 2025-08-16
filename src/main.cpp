@@ -1,4 +1,5 @@
 #include <CLI/CLI.hpp>
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <magic_enum/magic_enum.hpp>
@@ -23,6 +24,39 @@ void print_safetensors_info(const safetensors::SafeTensors& st) {
     std::unordered_map<std::string, std::size_t> dtype_sizes;
 
     auto tensor_names = st.names();
+    // Sort tensor names with proper numeric ordering by splitting on '.'
+    std::ranges::sort(tensor_names, [](const std::string_view& a, const std::string_view& b) {
+        auto split = [](std::string_view str) {
+            std::vector<std::string> parts;
+            size_t start = 0;
+            size_t pos = 0;
+            while ((pos = str.find('.', start)) != std::string_view::npos) {
+                parts.emplace_back(str.substr(start, pos - start));
+                start = pos + 1;
+            }
+            parts.emplace_back(str.substr(start));
+            return parts;
+        };
+
+        auto parts_a = split(a);
+        auto parts_b = split(b);
+
+        for (size_t i = 0; i < std::min(parts_a.size(), parts_b.size()); ++i) {
+            // Try to parse as numbers first
+            bool is_num_a = !parts_a[i].empty() && std::all_of(parts_a[i].begin(), parts_a[i].end(), ::isdigit);
+            bool is_num_b = !parts_b[i].empty() && std::all_of(parts_b[i].begin(), parts_b[i].end(), ::isdigit);
+
+            if (is_num_a && is_num_b) {
+                int num_a = std::stoi(parts_a[i]);
+                int num_b = std::stoi(parts_b[i]);
+                if (num_a != num_b) return num_a < num_b;
+            } else {
+                if (parts_a[i] != parts_b[i]) return parts_a[i] < parts_b[i];
+            }
+        }
+        return parts_a.size() < parts_b.size();
+    });
+
     for (size_t i = 0; i < tensor_names.size(); ++i) {
         const auto& name = tensor_names[i];
         auto tensor_view = st.tensor(name);
