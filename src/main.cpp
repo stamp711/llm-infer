@@ -5,9 +5,30 @@
 #include <magic_enum/magic_enum.hpp>
 #include <safetensors.hpp>
 #include <string>
-#include <tensor.hpp>
-#include <tensor_safetensors_adapter.hpp>
+#include <tensor_types.hpp>
 #include <unordered_map>
+
+// Create read-only dynamic tensor view from SafeTensors
+template <typename T>
+[[nodiscard]] tensor::TensorDynamicView<T> from_safetensor(const safetensors::TensorView& view) {
+    if constexpr (std::is_same_v<T, float>) {
+        if (view.dtype() != safetensors::Dtype::F32) {
+            throw std::runtime_error("Dtype mismatch: expected F32");
+        }
+    } else if constexpr (std::is_same_v<T, double>) {
+        if (view.dtype() != safetensors::Dtype::F64) {
+            throw std::runtime_error("Dtype mismatch: expected F64");
+        }
+    } else {
+        throw std::runtime_error("Unsupported data type");
+    }
+
+    const auto* data_ptr = reinterpret_cast<const T*>(view.data().data());
+    const auto& shape = view.shape();
+    std::size_t total_size = 1;
+    for (auto dim : shape) total_size *= dim;
+    return tensor::TensorDynamicView<T>(shape, tensor::ViewStorage<T>(data_ptr, total_size));
+}
 
 void print_safetensors_info(const safetensors::SafeTensors& st) {
     std::cout << "\nSafeTensors Information:\n";
@@ -189,7 +210,7 @@ int main(int argc, char** argv) {
             auto view = st.tensor(name);
             if (view.dtype() == safetensors::Dtype::F32) {
                 std::cout << "\nTensor demonstration with: " << name << "\n";
-                auto tensor = infer::from_safetensor<float>(view);
+                auto tensor = from_safetensor<float>(view);
                 std::cout << "Created tensor view with " << tensor.size() << " elements\n";
                 std::cout << "First few values: ";
                 for (size_t i = 0; i < std::min(size_t(5), tensor.size()); ++i) {
