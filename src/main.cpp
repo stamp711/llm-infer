@@ -6,6 +6,7 @@
 #include <safetensors.hpp>
 #include <string>
 #include <tensor.hpp>
+#include <tensor_safetensors_adapter.hpp>
 #include <unordered_map>
 
 void print_safetensors_info(const safetensors::SafeTensors& st) {
@@ -188,7 +189,7 @@ int main(int argc, char** argv) {
             auto view = st.tensor(name);
             if (view.dtype() == safetensors::Dtype::F32) {
                 std::cout << "\nTensor demonstration with: " << name << "\n";
-                infer::Tensor<float> tensor(view);
+                auto tensor = infer::from_safetensor<float>(view);
                 std::cout << "Created tensor view with " << tensor.size() << " elements\n";
                 std::cout << "First few values: ";
                 for (size_t i = 0; i < std::min(size_t(5), tensor.size()); ++i) {
