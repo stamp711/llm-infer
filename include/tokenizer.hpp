@@ -17,9 +17,9 @@ struct TokenTrie {
 
 class Tokenizer {
    public:
-    explicit Tokenizer(const GGUF& gguf);
+    explicit Tokenizer(const GGUF& gguf, std::optional<std::size_t> vocab_size = std::nullopt);
     explicit Tokenizer(const std::string& tokenizer_json_path, std::uint32_t bos_id, std::uint32_t eos_id,
-                      std::optional<std::size_t> vocab_size = std::nullopt);
+                       std::optional<std::size_t> vocab_size = std::nullopt);
 
     [[nodiscard]] std::vector<std::uint32_t> encode(std::string_view text, bool add_bos = true) const;
 
@@ -35,6 +35,7 @@ class Tokenizer {
     [[nodiscard]] std::string tokens_to_debug_string(const std::vector<std::uint32_t>& tokens) const;
 
     [[nodiscard]] std::optional<std::uint32_t> byte_fallback_start() const noexcept { return byte_fallback_start_; }
+    [[nodiscard]] std::uint32_t max_token_id() const noexcept { return max_accepted_token_id_; }
 
    private:
     void build_trie();
@@ -49,4 +50,5 @@ class Tokenizer {
     std::optional<std::uint32_t> eot_id_;
 
     std::optional<std::uint32_t> byte_fallback_start_;
+    std::uint32_t max_accepted_token_id_;
 };

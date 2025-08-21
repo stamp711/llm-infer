@@ -1,3 +1,9 @@
 {
-    "dependencies": ["mio", "cli11", "magic-enum", "nlohmann-json"]
+  "dependencies": [
+    "cli11",
+    "magic-enum",
+    "mio",
+    "nlohmann-json",
+    "fmt"
+  ]
 }

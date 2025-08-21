@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
-Tokenizer::Tokenizer(const GGUF& gguf) {
+Tokenizer::Tokenizer(const GGUF& gguf, std::optional<std::size_t> vocab_size) {
     extract_special_tokens(gguf);
 
     const auto& metadata = gguf.metadata_kv();
@@ -48,6 +48,15 @@ Tokenizer::Tokenizer(const GGUF& gguf) {
             token == "<|end_of_text|>") {
             eot_id_ = static_cast<std::uint32_t>(i);
         }
+    }
+
+    // Set max_token_id to actual vocab size - 1 by default
+    max_accepted_token_id_ = static_cast<std::uint32_t>(vocab_.size() - 1);
+    if (vocab_size.has_value()) {
+        if (*vocab_size < vocab_.size()) {
+            throw std::runtime_error("Specified vocabulary size is smaller than actual size");
+        }
+        max_accepted_token_id_ = *vocab_size - 1;
     }
 
     build_trie();
@@ -155,9 +164,15 @@ std::string Tokenizer::decode_token(std::uint32_t token) const {
 }
 
 std::string Tokenizer::decode_token_internal_(std::uint32_t prev_token, std::uint32_t token) const {
-    // Check token bounds
+    // Check if token ID exceeds maximum accepted range
+    if (token > max_accepted_token_id_) {
+        throw std::runtime_error("Token ID " + std::to_string(token) + " exceeds maximum accepted token ID " + 
+                                 std::to_string(max_accepted_token_id_));
+    }
+    
+    // If token is in valid range but not in vocab, decode as empty string
     if (token >= vocab_.size()) {
-        throw std::runtime_error("Token ID " + std::to_string(token) + " out of vocab bounds");
+        return "";  // Empty string for missing tokens within accepted range
     }
 
     const std::string& piece = vocab_[token];
@@ -243,20 +258,7 @@ Tokenizer::Tokenizer(const std::string& tokenizer_json_path, std::uint32_t bos_i
         }
     }
 
-    // Determine actual vocab size needed
-    size_t actual_vocab_size = max_token_id + 1;
-
-    // Validate and use provided vocab size if given
-    if (vocab_size.has_value()) {
-        if (max_token_id >= vocab_size.value()) {
-            throw std::runtime_error("Tokenizer has token ID " + std::to_string(max_token_id) +
-                                     " but vocab_size is only " + std::to_string(vocab_size.value()));
-        }
-        // Use provided vocab_size to match model's embedding matrix size
-        actual_vocab_size = vocab_size.value();
-    }
-
-    vocab_.resize(actual_vocab_size);
+    vocab_.resize(max_token_id + 1);
 
     // Fill vocab from the JSON object
     for (const auto& [token, id] : vocab_obj.items()) {
@@ -292,6 +294,15 @@ Tokenizer::Tokenizer(const std::string& tokenizer_json_path, std::uint32_t bos_i
         } else if (token == "<|eot_id|>" || token == "<|end|>" || token == "<|im_end|>" || token == "<|end_of_text|>") {
             eot_id_ = static_cast<std::uint32_t>(i);
         }
+    }
+    
+    // Set max_accepted_token_id to actual vocab size - 1 by default
+    max_accepted_token_id_ = static_cast<std::uint32_t>(vocab_.size() - 1);
+    if (vocab_size.has_value()) {
+        if (*vocab_size < vocab_.size()) {
+            throw std::runtime_error("Specified vocabulary size is smaller than actual size");
+        }
+        max_accepted_token_id_ = static_cast<std::uint32_t>(*vocab_size - 1);
     }
 
     build_trie();

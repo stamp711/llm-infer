@@ -25,6 +25,7 @@ find_package(CLI11 REQUIRED)
 find_package(mio REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 
 # Set CUDA architectures
 # Common architectures: 75 (RTX 20xx), 80 (A100), 86 (RTX 30xx), 89 (RTX 40xx)
@@ -37,50 +38,70 @@ add_subdirectory(tensor)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
-# Collect source files
+# Create the main library with all source files
 file(
-    GLOB_RECURSE SOURCES
+    GLOB_RECURSE LIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
 )
 
-# Create executable
-add_executable(llm_infer ${SOURCES})
+add_library(llm_infer_lib STATIC ${LIB_SOURCES})
 
-set_target_properties(llm_infer PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(llm_infer_lib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-# Link libraries
+# Link libraries to llm_infer_lib
 target_link_libraries(
-    llm_infer
+    llm_infer_lib
+    PUBLIC
     CUDA::cudart
-    CUDA::cublas
-    CUDA::curand
     OpenMP::OpenMP_CXX
-    CLI11::CLI11
     mio::mio
     magic_enum::magic_enum
     nlohmann_json::nlohmann_json
+    fmt::fmt
     tensor
 )
 
-# Compiler flags
+# Compiler flags for library
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(
-        llm_infer
+        llm_infer_lib
         PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-g -Wall -Wextra -O3>
     )
 endif()
 
-# CUDA compiler flags
+# CUDA compiler flags for library
 target_compile_options(
-    llm_infer
+    llm_infer_lib
     PRIVATE
         $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
         $<$<COMPILE_LANGUAGE:CUDA>:-O3>
 )
 
-# Set output directory
-set_target_properties(
-    llm_infer
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-)
+# Function to create and configure a tool
+function(add_tool tool_name source_file)
+    add_executable(${tool_name} ${source_file})
+
+    target_link_libraries(
+        ${tool_name}
+        llm_infer_lib
+        CLI11::CLI11
+    )
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(
+            ${tool_name}
+            PRIVATE -g -Wall -Wextra -O3
+        )
+    endif()
+
+    set_target_properties(
+        ${tool_name}
+        PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    )
+endfunction()
+
+# Create tools
+add_tool(infer tools/infer.cpp)
+add_tool(gguf_info tools/gguf_info.cpp)
+add_tool(hf_info tools/hf_info.cpp)

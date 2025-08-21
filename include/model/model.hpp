@@ -5,20 +5,33 @@
 
 #include "block.hpp"
 #include "config.hpp"
-
-struct InferenceState {
-    float* x = nullptr;  // (dim) for a single new token
-    float* q = nullptr;  // n_heads * (head_dim)
-    float* k = nullptr;  // n_kv_heads * (head_dim)
-    float* v = nullptr;  // n_kv_heads * (head_dim)
-};
+#include "device.hpp"
+#include "gguf.hpp"
+#include "model/tensor.hpp"
 
 class Model {
    public:
-    Model();
+    Model(const Model&) = delete;
+    Model(Model&&) = delete;
+    Model& operator=(const Model&) = delete;
+    Model& operator=(Model&&) = delete;
 
-   private:
-    DeviceType device_type_;
-    std::unique_ptr<ModelConfig> model_config_;
-    std::vector<Block> blocks;
+    explicit Model(const GGUF& gguf, DeviceType device_type);
+    ~Model();
+
+    DeviceType device_type;
+
+    // Model configuration
+    std::unique_ptr<ModelConfig> config;
+
+    // Model components
+    std::vector<std::unique_ptr<Block>> blocks;
+
+    // When the tensor has dimensions [x, y, z], the data is laid out in memory such that the innermost
+    // (fastest-changing) index corresponds to the first dimension (x), followed by y, then z.
+
+    // Global tensors
+    Tensor<const void> token_embedding_table;  // [dim, vocab_size] - look up table
+    Tensor<const void> rms_final_weight;       // [dim]
+    Tensor<const void> wcls;                   // [dim, vocab_size] - classifier weights
 };

@@ -88,9 +88,9 @@ std::optional<LlamaConfig> GGUF::parse_llama_config() const {
     if (architecture_ != "llama") {
         return std::nullopt;
     }
-    
+
     LlamaConfig config;
-    
+
     auto get_required = [this](const std::string& key) -> std::optional<std::uint64_t> {
         if (auto value = get_metadata_value<std::uint64_t>("llama." + key)) {
             return value;
@@ -100,7 +100,7 @@ std::optional<LlamaConfig> GGUF::parse_llama_config() const {
         }
         return std::nullopt;
     };
-    
+
     auto get_required_float = [this](const std::string& key) -> std::optional<float> {
         if (auto value = get_metadata_value<float>("llama." + key)) {
             return value;
@@ -110,55 +110,55 @@ std::optional<LlamaConfig> GGUF::parse_llama_config() const {
         }
         return std::nullopt;
     };
-    
+
     auto context_length = get_required("context_length");
     if (!context_length) return std::nullopt;
     config.context_length = *context_length;
-    
+
     auto embedding_length = get_required("embedding_length");
     if (!embedding_length) return std::nullopt;
     config.embedding_length = *embedding_length;
-    
+
     auto block_count = get_required("block_count");
     if (!block_count) return std::nullopt;
     config.block_count = *block_count;
-    
+
     auto feed_forward_length = get_required("feed_forward_length");
     if (!feed_forward_length) return std::nullopt;
     config.feed_forward_length = *feed_forward_length;
-    
+
     auto rope_dimension_count = get_required("rope.dimension_count");
     if (!rope_dimension_count) return std::nullopt;
     config.rope_dimension_count = *rope_dimension_count;
-    
+
     auto attention_head_count = get_required("attention.head_count");
     if (!attention_head_count) return std::nullopt;
     config.attention_head_count = *attention_head_count;
-    
+
     auto layer_norm_rms_epsilon = get_required_float("attention.layer_norm_rms_epsilon");
     if (!layer_norm_rms_epsilon) return std::nullopt;
     config.layer_norm_rms_epsilon = *layer_norm_rms_epsilon;
-    
+
     if (auto rope_freq_base = get_required_float("rope.freq_base")) {
         config.rope_freq_base = *rope_freq_base;
     }
-    
+
     if (auto rope_scale = get_required_float("rope.scale")) {
         config.rope_scale = rope_scale;
     }
-    
+
     if (auto head_count_kv = get_required("attention.head_count_kv")) {
         config.attention_head_count_kv = head_count_kv;
     }
-    
+
     if (auto expert_count = get_metadata_value<std::uint32_t>("llama.expert_count")) {
         config.expert_count = expert_count;
     }
-    
+
     if (auto expert_used = get_metadata_value<std::uint32_t>("llama.expert_used_count")) {
         config.expert_used_count = expert_used;
     }
-    
+
     if (auto vocab_size = get_required("vocab_size")) {
         config.vocab_size = *vocab_size;
     } else {
@@ -166,7 +166,7 @@ std::optional<LlamaConfig> GGUF::parse_llama_config() const {
         if (!tokenizer_vocab_size) return std::nullopt;
         config.vocab_size = *tokenizer_vocab_size;
     }
-    
+
     return config;
 }
 
@@ -237,7 +237,8 @@ GGUF::GGUF(const std::filesystem::path& path) : mmap_(path.c_str()) {
 
     // Parse tensor info
     for (size_t i = 0; i < header->tensor_count; ++i) {
-        tensor_infos_.emplace_back(span);
+        TensorInfo tensor_info(span);
+        tensors_.emplace(tensor_info.name, std::move(tensor_info));
     }
 
     // Calculate and skip padding
@@ -250,5 +251,7 @@ GGUF::GGUF(const std::filesystem::path& path) : mmap_(path.c_str()) {
     tensor_data_ = reinterpret_cast<const std::byte*>(span.data());
 
     // Update tensor addresses
-    for (auto& tensor : tensor_infos_) tensor.data = tensor_data_ + tensor.offset;
+    for (auto& [name, tensor] : tensors_) {
+        tensor.data = tensor_data_ + tensor.offset;
+    }
 }

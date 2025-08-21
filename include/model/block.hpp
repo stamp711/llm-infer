@@ -1,33 +1,48 @@
 #pragma once
 
 #include "config.hpp"
+#include "device.hpp"
+#include "gguf.hpp"
+#include "model/tensor.hpp"
+
+using f16_t = std::uint16_t;
 
 // NOTE: weights are stored in column-major order for efficienct computing,
 // since they are on the right side of matrix multiplication.
 struct Block {
-    Block();
+    Block(const Block&) = delete;
+    Block(Block&&) = delete;
+    Block& operator=(const Block&) = delete;
+    Block& operator=(Block&&) = delete;
+
+    Block(const GGUF& gguf, DeviceType device_type, const ModelConfig& config, int layer_i);
+    ~Block();
+
+    DeviceType device_type;
+    const ModelConfig* config;
 
     int layer_i;
-    ModelConfig* model_config;
-    DeviceType device_type;
+
+    // When the tensor has dimensions [x, y, z], the data is laid out in memory such that the innermost
+    // (fastest-changing) index corresponds to the first dimension (x), followed by y, then z.
 
     // weights for norms
-    void* rms_att_weight_ = nullptr;  // (dim)
-    void* rms_ffn_weight_ = nullptr;  // (dim)
+    Tensor<const void> rms_att_weight_;  // [dim]
+    Tensor<const void> rms_ffn_weight_;  // [dim]
 
     // weights for attention
-    void* wq = nullptr;  // n_heads * (dim, head_dim)
-    void* wk = nullptr;  // n_kv_heads * (dim, head_dim)
-    void* wv = nullptr;  // (n_kv_heads * head_dim, dim)
-    void* wo = nullptr;  // (n_heads * head_dim, dim)
+    Tensor<const void> wq;  // [dim, head_dim * n_heads]
+    Tensor<const void> wk;  // [dim, head_dim * n_kv_heads]
+    Tensor<const void> wv;  // [dim, head_dim * n_kv_heads]
+    Tensor<const void> wo;  // [dim, head_dim * n_heads]
 
     // weights for ffn
-    void* w1 = nullptr;       // n_experts? * (dim, hidden_dim)
-    void* w2 = nullptr;       // n_experts? * (hidden_dim, dim)
-    void* w3 = nullptr;       // n_experts? * (dim, hidden_dim), for gating
-    void* moegate = nullptr;  // (dim, n_experts), for MoE gating
+    Tensor<const void> w1;       // [dim, hidden_dim, (n_experts)]
+    Tensor<const void> w2;       // [hidden_dim, dim, (n_experts)]
+    Tensor<const void> w3;       // [dim, hidden_dim, (n_experts)], for gating
+    Tensor<const void> moegate;  // (dim, n_experts), for MoE gating
 
-    // kv cache
-    void* k_cache = nullptr;  // [N][n_kv_heads * (head_dim)]
-    void* v_cache = nullptr;  // [N][n_kv_heads * (head_dim)]
+    // kv cache - these will be allocated and mutable
+    Tensor<f16_t> k_cache;  // [N][n_kv_heads * (head_dim)]
+    Tensor<f16_t> v_cache;  // [N][n_kv_heads * (head_dim)]
 };

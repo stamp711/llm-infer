@@ -3,8 +3,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <mio/mmap.hpp>
+#include <numeric>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -99,6 +101,10 @@ struct TensorInfo {
    public:
     TensorInfo(std::span<const char> &span);
 
+    [[nodiscard]] std::size_t elements() const {
+        return std::accumulate(dimensions.begin(), dimensions.end(), 1, std::multiplies<>());
+    }
+
     // The name of the tensor. It is a standard GGUF string, with the caveat that
     // it must be at most 64 bytes long.
     std::string name;
@@ -134,7 +140,12 @@ class GGUF {
 
     [[nodiscard]] std::uint64_t tensor_count() const noexcept { return tensor_count_; }
     [[nodiscard]] const std::vector<MetadataKeyValue> &metadata_kv() const noexcept { return metadata_kv_; }
-    [[nodiscard]] const std::vector<TensorInfo> &tensor_infos() const noexcept { return tensor_infos_; }
+    [[nodiscard]] const std::unordered_map<std::string, TensorInfo> &tensors() const noexcept { return tensors_; }
+
+    [[nodiscard]] const TensorInfo *get_tensor(const std::string &name) const noexcept {
+        auto it = tensors_.find(name);
+        return it != tensors_.end() ? &it->second : nullptr;
+    }
 
     [[nodiscard]] const std::string &architecture() const noexcept { return architecture_; }
     [[nodiscard]] std::uint32_t quantization_version() const noexcept { return quantization_version_; }
@@ -148,23 +159,23 @@ class GGUF {
         }
         return nullptr;
     }
-    
+
     template <typename T>
     [[nodiscard]] std::optional<T> get_metadata_value(const std::string &key) const noexcept {
-        const auto* value = get_metadata(key);
+        const auto *value = get_metadata(key);
         if (!value) return std::nullopt;
-        
-        if (const auto* ptr = std::get_if<T>(&value->inner)) {
+
+        if (const auto *ptr = std::get_if<T>(&value->inner)) {
             return *ptr;
         }
         return std::nullopt;
     }
-    
+
     template <typename T>
     [[nodiscard]] T get_metadata_value_or(const std::string &key, T default_value) const noexcept {
         return get_metadata_value<T>(key).value_or(default_value);
     }
-    
+
     [[nodiscard]] std::optional<LlamaConfig> parse_llama_config() const;
 
    private:
@@ -175,7 +186,7 @@ class GGUF {
     // The metadata key-value pairs.
     std::vector<MetadataKeyValue> metadata_kv_;  // don't parse value for now, store in bytes
 
-    std::vector<TensorInfo> tensor_infos_;
+    std::unordered_map<std::string, TensorInfo> tensors_;
 
     const std::byte *tensor_data_;
 
