@@ -24,13 +24,13 @@ find_package(OpenMP REQUIRED)
 find_package(CLI11 REQUIRED)
 find_package(mio REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # Set CUDA architectures
 # Common architectures: 75 (RTX 20xx), 80 (A100), 86 (RTX 30xx), 89 (RTX 40xx)
 set(CMAKE_CUDA_ARCHITECTURES 75 80 86 89)
 
 # Add libraries
-add_subdirectory(safetensors)
 add_subdirectory(tensor)
 
 # Include directories
@@ -59,7 +59,7 @@ target_link_libraries(
     CLI11::CLI11
     mio::mio
     magic_enum::magic_enum
-    safetensors
+    nlohmann_json::nlohmann_json
     tensor
 )
 

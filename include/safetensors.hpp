@@ -150,6 +150,8 @@ class SafeTensors {
     /// parses the header, and returns the size of the header + the parsed data.
     static std::pair<std::size_t, Metadata> read_metadata(std::span<const char> buffer);
 
+    [[nodiscard]] const Metadata& metadata() const noexcept { return metadata_; }
+
     /// Allow the user to get a specific tensor within the SafeTensors.
     /// The tensor returned is merely a view and the data is not owned by this structure.
     TensorView tensor(std::string_view tensor_name) const;

@@ -1,7 +1,10 @@
 #include "tokenizer.hpp"
 
 #include <cstring>
+#include <fstream>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
+#include <unordered_map>
 
 Tokenizer::Tokenizer(const GGUF& gguf) {
     extract_special_tokens(gguf);
@@ -196,4 +199,100 @@ std::string Tokenizer::tokens_to_debug_string(const std::vector<std::uint32_t>& 
     }
 
     return result;
+}
+
+Tokenizer::Tokenizer(const std::string& tokenizer_json_path, std::uint32_t bos_id, std::uint32_t eos_id,
+                     std::optional<std::size_t> vocab_size)
+    : bos_id_(bos_id), eos_id_(eos_id) {
+    std::ifstream file(tokenizer_json_path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open tokenizer file: " + tokenizer_json_path);
+    }
+
+    nlohmann::json tokenizer_json;
+    try {
+        file >> tokenizer_json;
+    } catch (const nlohmann::json::parse_error& e) {
+        throw std::runtime_error("Failed to parse tokenizer JSON: " + std::string(e.what()));
+    }
+
+    // Load vocabulary from model.vocab
+    if (!tokenizer_json.contains("model") || !tokenizer_json["model"].contains("vocab")) {
+        throw std::runtime_error("Tokenizer JSON missing model.vocab");
+    }
+
+    auto& vocab_obj = tokenizer_json["model"]["vocab"];
+    if (!vocab_obj.is_object()) {
+        throw std::runtime_error("model.vocab is not an object");
+    }
+
+    // Find the maximum token ID to determine minimum required vocab size
+    size_t max_token_id = 0;
+    for (const auto& [token, id] : vocab_obj.items()) {
+        std::uint32_t token_id = id.get<std::uint32_t>();
+        max_token_id = std::max(max_token_id, static_cast<size_t>(token_id));
+    }
+
+    // Handle added_tokens to get final max token ID
+    if (tokenizer_json.contains("added_tokens")) {
+        for (const auto& added_token : tokenizer_json["added_tokens"]) {
+            if (added_token.contains("id")) {
+                std::uint32_t token_id = added_token["id"].get<std::uint32_t>();
+                max_token_id = std::max(max_token_id, static_cast<size_t>(token_id));
+            }
+        }
+    }
+
+    // Determine actual vocab size needed
+    size_t actual_vocab_size = max_token_id + 1;
+
+    // Validate and use provided vocab size if given
+    if (vocab_size.has_value()) {
+        if (max_token_id >= vocab_size.value()) {
+            throw std::runtime_error("Tokenizer has token ID " + std::to_string(max_token_id) +
+                                     " but vocab_size is only " + std::to_string(vocab_size.value()));
+        }
+        // Use provided vocab_size to match model's embedding matrix size
+        actual_vocab_size = vocab_size.value();
+    }
+
+    vocab_.resize(actual_vocab_size);
+
+    // Fill vocab from the JSON object
+    for (const auto& [token, id] : vocab_obj.items()) {
+        std::uint32_t token_id = id.get<std::uint32_t>();
+        vocab_[token_id] = token;
+    }
+
+    // Add special tokens from added_tokens
+    if (tokenizer_json.contains("added_tokens")) {
+        for (const auto& added_token : tokenizer_json["added_tokens"]) {
+            if (added_token.contains("id") && added_token.contains("content")) {
+                std::uint32_t token_id = added_token["id"].get<std::uint32_t>();
+                std::string content = added_token["content"].get<std::string>();
+                vocab_[token_id] = content;
+            }
+        }
+    }
+
+    // Process all tokens in a single pass
+    for (size_t i = 0; i < vocab_.size(); ++i) {
+        auto& token = vocab_[i];
+
+        // SentencePiece: replace ▁ with space
+        size_t pos = 0;
+        while ((pos = token.find("▁", pos)) != std::string::npos) {
+            token.replace(pos, 3, " ");  // ▁ is 3 bytes in UTF-8
+            pos += 1;
+        }
+
+        // Check for special tokens
+        if (token == "<0x00>") {
+            byte_fallback_start_ = static_cast<std::uint32_t>(i);
+        } else if (token == "<|eot_id|>" || token == "<|end|>" || token == "<|im_end|>" || token == "<|end_of_text|>") {
+            eot_id_ = static_cast<std::uint32_t>(i);
+        }
+    }
+
+    build_trie();
 }

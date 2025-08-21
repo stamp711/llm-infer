@@ -18,6 +18,8 @@ struct TokenTrie {
 class Tokenizer {
    public:
     explicit Tokenizer(const GGUF& gguf);
+    explicit Tokenizer(const std::string& tokenizer_json_path, std::uint32_t bos_id, std::uint32_t eos_id,
+                      std::optional<std::size_t> vocab_size = std::nullopt);
 
     [[nodiscard]] std::vector<std::uint32_t> encode(std::string_view text, bool add_bos = true) const;
 
