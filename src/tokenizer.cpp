@@ -166,10 +166,10 @@ std::string Tokenizer::decode_token(std::uint32_t token) const {
 std::string Tokenizer::decode_token_internal_(std::uint32_t prev_token, std::uint32_t token) const {
     // Check if token ID exceeds maximum accepted range
     if (token > max_accepted_token_id_) {
-        throw std::runtime_error("Token ID " + std::to_string(token) + " exceeds maximum accepted token ID " + 
+        throw std::runtime_error("Token ID " + std::to_string(token) + " exceeds maximum accepted token ID " +
                                  std::to_string(max_accepted_token_id_));
     }
-    
+
     // If token is in valid range but not in vocab, decode as empty string
     if (token >= vocab_.size()) {
         return "";  // Empty string for missing tokens within accepted range
@@ -295,7 +295,7 @@ Tokenizer::Tokenizer(const std::string& tokenizer_json_path, std::uint32_t bos_i
             eot_id_ = static_cast<std::uint32_t>(i);
         }
     }
-    
+
     // Set max_accepted_token_id to actual vocab size - 1 by default
     max_accepted_token_id_ = static_cast<std::uint32_t>(vocab_.size() - 1);
     if (vocab_size.has_value()) {
