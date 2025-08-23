@@ -13,7 +13,8 @@
 #include "model/device.hpp"
 
 // Helper methods for tensor loading
-[[nodiscard]] inline const TensorInfo& get_tensor_required(const GGUF& gguf, std::string_view name) {
+[[nodiscard]]
+inline const TensorInfo& get_tensor_required(const GGUF& gguf, std::string_view name) {
     const TensorInfo* tensor = gguf.get_tensor(std::string(name));
     if (tensor == nullptr) {
         throw std::runtime_error(std::string("Required tensor not found: ") + std::string(name));
@@ -83,8 +84,18 @@ class Tensor {
         }
     }
 
-    [[nodiscard]] bool has_value() const noexcept { return data_ != nullptr; }
-    [[nodiscard]] T* get() const noexcept { return data_; }
+    [[nodiscard]]
+    bool has_value() const noexcept {
+        return data_ != nullptr;
+    }
+    [[nodiscard]]
+    QuantizationType quantization() const noexcept {
+        return quantization_;
+    }
+    [[nodiscard]]
+    T* data() const noexcept {
+        return data_;
+    }
     void set(T* data) { data_ = data; }
 
    private:

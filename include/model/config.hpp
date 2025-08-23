@@ -28,6 +28,8 @@ enum class ActivationType : std::uint8_t { GELU, SILU };
 
 enum class LayerNormType : std::uint8_t { RMSNorm };
 
+constexpr std::uint32_t KV_SINK = 4;
+
 struct ModelConfig {
     // Core transformer dimensions
     std::uint32_t n_layers;
@@ -51,7 +53,8 @@ struct ModelConfig {
 
     // Activation and clipping
     ActivationType act;
-    float qkv_clip;  // clip qkv to [-clip, clip]
+    bool qkv_clip;
+    float qkv_clip_value;  // clip qkv to [-clip, clip]
 
     // Mixture of experts
     std::uint32_t n_experts;

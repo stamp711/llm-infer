@@ -94,7 +94,8 @@ ModelConfig::ModelConfig(const HFConfig& hf) {
         act = ActivationType::GELU;
     }
 
-    qkv_clip = FLT_MAX;  // no clipping by default
+    qkv_clip = false;
+    qkv_clip_value = FLT_MAX;  // no clipping by default
 
     // Mixture of experts
     if (config.contains("num_local_experts")) {
@@ -150,7 +151,8 @@ ModelConfig::ModelConfig(const GGUF& gguf) {
     norm_type = LayerNormType::RMSNorm;  // GGUF only supports RMS normalization
 
     act = ActivationType::SILU;  // Default for Llama models, not stored in GGUF metadata
-    qkv_clip = FLT_MAX;          // No clipping by default, not stored in GGUF metadata
+    qkv_clip = false;
+    qkv_clip_value = FLT_MAX;  // No clipping by default, not stored in GGUF metadata
 
     n_experts = static_cast<std::uint32_t>(llama.expert_count.value_or(0));
     n_experts_active = static_cast<std::uint32_t>(llama.expert_used_count.value_or(0));

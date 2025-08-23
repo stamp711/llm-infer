@@ -79,7 +79,7 @@ void print_model_config(const ModelConfig& config) {
     fmt::println("");
     fmt::println("Activation and clipping:");
     fmt::println("  act: {}", magic_enum::enum_name(config.act));
-    fmt::println("  qkv_clip: {}", config.qkv_clip);
+    fmt::println("  qkv_clip: {}", config.qkv_clip_value);
 
     fmt::println("");
     fmt::println("Mixture of experts:");
@@ -161,15 +161,14 @@ int main(int argc, char** argv) {
         fmt::println("");
         fmt::println("Creating Model and InferenceState from GGUF...");
         try {
-            Model model(gguf, DeviceType::CUDA);
+            Model model(gguf, DeviceType::CPU);
             fmt::println("Model created successfully!");
-            fmt::println("  Blocks created: {}", model.blocks.size());
-            fmt::println("  Expected blocks: {}", model.config->n_layers);
+            fmt::println("  Layers: {}", model.config().n_layers);
 
-            auto is = InferenceState(*model.config, model.device_type);
+            auto is = InferenceState(model.config(), model.device_type());
             fmt::println("InferenceState created successfully!");
 
-            CUDAContext::synchronize();
+            model.forward(is, 0, 0);
 
             ::sleep(10);
         } catch (const std::exception& e) {

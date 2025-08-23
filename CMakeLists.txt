@@ -2,8 +2,11 @@ cmake_minimum_required(VERSION 3.18)
 
 # Set vcpkg toolchain if VCPKG_ROOT is set and toolchain not already specified
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-        CACHE STRING "Vcpkg toolchain file")
+    set(CMAKE_TOOLCHAIN_FILE
+        "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING
+        "Vcpkg toolchain file"
+    )
 endif()
 
 project(llm_infer LANGUAGES CXX CUDA)
@@ -11,7 +14,7 @@ project(llm_infer LANGUAGES CXX CUDA)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -53,20 +56,26 @@ set_target_properties(llm_infer_lib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(
     llm_infer_lib
     PUBLIC
-    CUDA::cudart
-    OpenMP::OpenMP_CXX
-    mio::mio
-    magic_enum::magic_enum
-    nlohmann_json::nlohmann_json
-    fmt::fmt
-    tensor
+        CUDA::cudart
+        OpenMP::OpenMP_CXX
+        mio::mio
+        magic_enum::magic_enum
+        nlohmann_json::nlohmann_json
+        fmt::fmt
+        tensor
 )
 
 # Compiler flags for library
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(
         llm_infer_lib
-        PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-g -Wall -Wextra -O3>
+        PRIVATE
+            $<$<COMPILE_LANGUAGE:CXX>:-g
+            -Wall
+            -Wextra
+            -O3
+            -funroll-loops
+            -march=native>
     )
 endif()
 
@@ -82,17 +91,10 @@ target_compile_options(
 function(add_tool tool_name source_file)
     add_executable(${tool_name} ${source_file})
 
-    target_link_libraries(
-        ${tool_name}
-        llm_infer_lib
-        CLI11::CLI11
-    )
+    target_link_libraries(${tool_name} llm_infer_lib CLI11::CLI11)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        target_compile_options(
-            ${tool_name}
-            PRIVATE -g -Wall -Wextra -O3
-        )
+        target_compile_options(${tool_name} PRIVATE -g -Wall -Wextra -O3)
     endif()
 
     set_target_properties(
