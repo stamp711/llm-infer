@@ -1,2 +1,28 @@
+If:
+  PathMatch: [.*\.cu$, .*\.cuh$]
+Diagnostics:
+  Suppress:
+    - ""
+CompileFlags:
+  Add:
+    - -xcuda
+    - --cuda-gpu-arch=sm_89
+    - -isystem
+    - /usr/lib/clang/20/include/cuda_wrappers
+
+---
+
+CompileFlags:
+  Remove:
+    - --expt*
+    - --generate-code=*
+    - --options-file
+    - -forward-unknown-to-host-compiler
+    - -rdc=*
+    - -Xcompiler*
+
+Index:
+  Background: Build
+
 Hover:
   ShowAKA: Yes  # Show underlying type in hover tooltips

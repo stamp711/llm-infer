@@ -5,6 +5,7 @@
 #include <mio/mmap.hpp>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <variant>

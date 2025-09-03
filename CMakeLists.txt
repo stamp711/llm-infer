@@ -12,14 +12,15 @@ endif()
 project(llm_infer LANGUAGES CXX CUDA)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CUDA_SEPARABLE_COMPILATION OFF)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Set CUDA standard
-set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 find_package(CUDAToolkit REQUIRED)
@@ -40,6 +41,16 @@ add_subdirectory(tensor)
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
+
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES OFF)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS OFF)
+
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -I${CMAKE_CURRENT_SOURCE_DIR}/include -I${CMAKE_BINARY_DIR}/vcpkg_installed/x64-linux/include")
+
+# set_target_properties(your_target_name PROPERTIES
+#     CUDA_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include;${CMAKE_BINARY_DIR}/vcpkg_installed/x64-linux/include"
+# )
 
 # Create the main library with all source files
 file(
@@ -84,6 +95,8 @@ target_compile_options(
     llm_infer_lib
     PRIVATE
         $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda>
+        $<$<COMPILE_LANGUAGE:CUDA>:-std=c++20>
         $<$<COMPILE_LANGUAGE:CUDA>:-O3>
 )
 
