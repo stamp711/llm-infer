@@ -74,7 +74,7 @@ Block::Block(const GGUF& gguf, DeviceType device_type, const ModelConfig& config
     v_cache = Tensor<f16_t>::allocate(QuantizationType::FP16, kv_cache_len, device_type);
 }
 
-void Block::block(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len) const {
+void Block::block(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len) {
     if (s.device_type() != device_type) {
         throw std::runtime_error("InferenceState device type does not match model device type");
     }
@@ -89,14 +89,22 @@ void Block::block(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv
                 // block_cpu_<float, float>(s, pos, kv_sink, kv_pos, kv_len); return;
                 default: throw std::runtime_error("Unsupported weight quantization type");
             }
+
+        case DeviceType::CUDA: {
+            switch (config->weight_quantization) {
+                case QuantizationType::FP16: block_cuda_<f16_t, float>(s, pos, kv_sink, kv_pos, kv_len); return;
+                case QuantizationType::FP32:
+                default: throw std::runtime_error("Unsupported weight quantization type");
+            }
+        }
+
         case DeviceType::CPU_UnAligned:
-        case DeviceType::CUDA:
         default: throw std::runtime_error("Unsupported device type");
     }
 }
 
 template <typename WeightT, typename NormT>
-void Block::block_cpu_(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len) const {
+void Block::block_cpu_(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len) {
     const ModelConfig& c = *config;
 
     // ========== Attention ==========

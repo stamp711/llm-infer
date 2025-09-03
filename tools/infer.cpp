@@ -1,3 +1,4 @@
+#include <fmt/base.h>
 #include <fmt/format.h>
 
 #include <chrono>
@@ -248,7 +249,8 @@ void run_inference(const Config& config) {
 
         // Warmup
         fmt::println("Warming up...");
-        model.forward(state, 0, 0, InferenceMode::OutputLogits);
+        model.forward(state, 0, 0, InferenceMode::Prefill);
+        model.forward(state, 0, 0, InferenceMode::Decode);
 
         // Encode prompt
         fmt::println("Encoding prompt...");
@@ -267,8 +269,7 @@ void run_inference(const Config& config) {
         std::uint64_t prefill_start = get_timestamp_ms();
 
         for (std::size_t pos = 0; pos < tokens.size(); ++pos) {
-            InferenceMode mode =
-                (pos + 1 == tokens.size()) ? InferenceMode::OutputLogits : InferenceMode::HydrateKVCache;
+            InferenceMode mode = (pos + 1 == tokens.size()) ? InferenceMode::Decode : InferenceMode::Prefill;
             model.forward(state, tokens[pos], static_cast<std::uint32_t>(pos), mode);
         }
 
@@ -318,7 +319,7 @@ void run_inference(const Config& config) {
             // Forward for next iteration
             if (i < config.max_tokens - 1) {  // Don't forward on last iteration
                 auto pos = static_cast<std::uint32_t>(tokens.size() - 1);
-                model.forward(state, next_token, pos, InferenceMode::OutputLogits);
+                model.forward(state, next_token, pos, InferenceMode::Decode);
             }
         }
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstddef>
-
 #include "config.hpp"
 #include "device.hpp"
 #include "gguf.hpp"
@@ -31,11 +29,14 @@ struct Block {
                uint32_t kv_pos,  // index of the current token in the kv cache, must be in [0..kv_len) since kv cache is
                                  // a ring buffer
                uint32_t kv_len   // number of tokens in the kv cache that we will attend over
-    ) const;
+    );
 
    private:
     template <typename WeightT, typename NormT>
-    void block_cpu_(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len) const;
+    void block_cpu_(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len);
+
+    template <typename WeightT, typename NormT>
+    void block_cuda_(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint32_t kv_pos, uint32_t kv_len);
 
     DeviceType device_type;
     const ModelConfig* config;

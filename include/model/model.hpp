@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -23,8 +24,7 @@ class Model {
     [[nodiscard]] const ModelConfig& config() const { return *config_; }
     [[nodiscard]] DeviceType device_type() const { return device_type_; }
 
-    void forward(InferenceState& s, std::uint32_t token, std::uint32_t pos,
-                 InferenceMode mode = InferenceMode::OutputLogits);
+    void forward(InferenceState& s, std::uint32_t token, std::uint32_t pos, InferenceMode mode = InferenceMode::Decode);
 
    private:
     // CPU
@@ -32,7 +32,8 @@ class Model {
     void copy_embedding_(InferenceState& s, std::uint32_t token);
 
     // CUDA
-    void forward_cuda_(InferenceState& s, int token, int pos, InferenceMode mode);
+    void forward_cuda_(InferenceState& s, uint32_t token, uint32_t pos, InferenceMode mode);
+    void forward_cuda_build_or_update_graph_(InferenceState& s, uint32_t token, uint32_t pos, InferenceMode mode);
 
     DeviceType device_type_;
 

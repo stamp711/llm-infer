@@ -18,7 +18,8 @@ Checks: >-
   -modernize-use-trailing-return-type,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
-  -readability-magic-numbers
+  -readability-magic-numbers,
+  -readability-static-accessed-through-instance
 
 CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines

@@ -40,7 +40,7 @@ inline void copy_f16_to_f32(const f16_t* src, float* dst, size_t count) {
     }
 }
 
-inline void rmsnorm(float* output, const float* x, const float* weight, uint32_t size, float eps) {
+inline void rmsnorm(float* out, const float* x, const float* weight, uint32_t size, float eps) {
     // naive implementation for now
     float rms = 0.0F;
     for (uint32_t i = 0; i < size; ++i) {
@@ -49,7 +49,20 @@ inline void rmsnorm(float* output, const float* x, const float* weight, uint32_t
     }
     rms = std::sqrt((rms / static_cast<float>(size)) + eps);
     for (uint32_t i = 0; i < size; ++i) {
-        output[i] = x[i] / rms * weight[i];
+        out[i] = x[i] / rms * weight[i];
+    }
+}
+
+inline void rmsnorm(float* x, const float* weight, uint32_t size, float eps) {
+    // naive implementation for now
+    float rms = 0.0F;
+    for (uint32_t i = 0; i < size; ++i) {
+        float x_i = x[i];
+        rms += x_i * x_i;
+    }
+    rms = std::sqrt((rms / static_cast<float>(size)) + eps);
+    for (uint32_t i = 0; i < size; ++i) {
+        x[i] = x[i] / rms * weight[i];
     }
 }
 
@@ -166,7 +179,7 @@ inline void moe_gate(float* active_experts_weights, int* active_experts, const f
 inline float gelu(float x) {
     // return x * 0.5F * (1.F + std::erff(x / std::sqrtf(2.F)));
     // We computate approximation instead
-    constexpr float sqrt2overpi = std::sqrtf(2.F / M_PI);
+    /* constexpr */ float sqrt2overpi = std::sqrtf(2.F / M_PI);
     return 0.5F * x * (1.F + std::tanhf(sqrt2overpi * (x + 0.044715F * x * x * x)));
 }
 

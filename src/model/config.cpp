@@ -6,6 +6,16 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#include "gguf.hpp"
+
+QuantizationType quantization_from_gguf(const GGMLType& type) {
+    switch (type) {
+        case GGMLType::GGML_TYPE_F32: return QuantizationType::FP32;
+        case GGMLType::GGML_TYPE_F16: return QuantizationType::FP16;
+        default: throw std::runtime_error("Unsupported tensor type");
+    }
+}
+
 namespace {
 
 struct QuantizationInfo {

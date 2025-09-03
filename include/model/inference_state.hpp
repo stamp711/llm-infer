@@ -1,12 +1,15 @@
 #pragma once
 
+#include <driver_types.h>
+
 #include <cstddef>
+#include <optional>
 
 #include "config.hpp"
 #include "device.hpp"
 #include "model/tensor.hpp"
 
-enum class InferenceMode : std::uint8_t { HydrateKVCache, OutputLogits };
+enum class InferenceMode : std::uint8_t { Prefill, Decode };
 
 // Always in 32bit float
 class InferenceState {
@@ -51,10 +54,19 @@ class InferenceState {
     [[nodiscard]] InferenceMode mode() const { return mode_; }
     void set_mode(InferenceMode mode) { mode_ = mode; }
 
+    [[nodiscard]] CudaGraph& graph() { return mode_ == InferenceMode::Prefill ? prefill_graph_ : decode_graph_; }
+
+    [[nodiscard]] cudaStream_t stream() const { return stream_.value(); }
+
    private:
     const ModelConfig* config_;
     InferenceMode mode_;
     DeviceType device_type_;
+
+    CudaGraph prefill_graph_;
+    CudaGraph decode_graph_;
+
+    std::optional<cudaStream_t> stream_;
 
     // TODO: CUDA-related
 
@@ -77,6 +89,6 @@ class InferenceState {
     Tensor<float> active_experts_weights_;  // Weights of active experts (n_experts_active)
     Tensor<int> active_experts_;            // Indices of active experts (n_experts_active)
 
-    // Output buffer (always on CPU)
+    // Output buffer (always on host)
     Tensor<float> logits_;  // Final output logits (vocab_size)
 };

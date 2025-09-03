@@ -1,0 +1,9 @@
+[
+    {
+        "label": "Make Build",
+        "command": "make -C build -j",
+        "allow_concurrent_runs": false,
+        "reveal": "no_focus",
+        "hide": "on_success"
+    }
+]

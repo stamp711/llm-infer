@@ -51,15 +51,15 @@ void Model::forward(InferenceState& s, std::uint32_t token, std::uint32_t pos, I
     }
     switch (device_type_) {
         case DeviceType::CPU: forward_cpu_(s, token, pos, mode); break;
+        case DeviceType::CUDA: forward_cuda_(s, token, pos, mode); break;
         case DeviceType::CPU_UnAligned:
-        case DeviceType::CUDA:
         default: throw std::runtime_error("Unsupported device type");
     }
 }
 
 void Model::forward_cpu_(InferenceState& s, std::uint32_t token, std::uint32_t pos, InferenceMode mode) {
     const auto& c = *config_;
-
+    s.set_mode(mode);
     copy_embedding_(s, token);
 
     // StreamingLLM
@@ -71,16 +71,16 @@ void Model::forward_cpu_(InferenceState& s, std::uint32_t token, std::uint32_t p
         b->block(s, pos, kv_sink, kv_pos, kv_len);
     }
 
-    if (mode == InferenceMode::HydrateKVCache) {
+    if (mode == InferenceMode::Prefill) {
         return;
     }
 
-    // Final layer norm, output to s.xb
+    // Final layer norm, overwrite x
     switch (c.norm_type) {
         case LayerNormType::RMSNorm: {
             switch (c.norms_weight_quantization) {
                 case QuantizationType::FP32:
-                    rmsnorm(s.xb(), s.x(), static_cast<const float*>(rms_final_weight_.data()), c.dim, c.norm_eps);
+                    rmsnorm(s.x(), static_cast<const float*>(rms_final_weight_.data()), c.dim, c.norm_eps);
                     break;
                 default: throw std::runtime_error("Unsupported layer norm weight quantization");
             }
@@ -89,10 +89,10 @@ void Model::forward_cpu_(InferenceState& s, std::uint32_t token, std::uint32_t p
         default: throw std::runtime_error("Unsupported layer norm type");
     }
 
-    // classifier, from s.xb to s.logits
+    // classifier, from s.x to s.logits
     switch (c.weight_quantization) {
         case QuantizationType::FP16:
-            matmul(s.logits(), s.xb(), static_cast<const f16_t*>(wcls_.data()), c.dim, c.vocab_size);
+            matmul(s.logits(), s.x(), static_cast<const f16_t*>(wcls_.data()), c.dim, c.vocab_size);
             break;
         default: throw std::runtime_error("Unsupported classifier weight quantization");
     }

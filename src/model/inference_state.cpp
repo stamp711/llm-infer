@@ -6,7 +6,11 @@
 #include "model/device.hpp"
 
 InferenceState::InferenceState(const ModelConfig& config, DeviceType device) : config_(&config), device_type_(device) {
-    mode_ = InferenceMode::OutputLogits;
+    mode_ = InferenceMode::Decode;
+
+    if (device_type_ == DeviceType::CUDA) {
+        stream_ = CUDAContext::create_cuda_stream();
+    }
 
     using QuantizationType::FP32;
     using QuantizationType::INT32;

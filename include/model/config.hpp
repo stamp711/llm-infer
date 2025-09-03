@@ -2,18 +2,15 @@
 
 #include <cstdint>
 
-#include "gguf.hpp"
+// #include "gguf.hpp"
 #include "hf_config.hpp"
 
 enum class QuantizationType : std::uint8_t { FP32, FP16, INT32 };
 
-inline QuantizationType quantization_from_gguf(GGMLType type) {
-    switch (type) {
-        case GGMLType::GGML_TYPE_F32: return QuantizationType::FP32;
-        case GGMLType::GGML_TYPE_F16: return QuantizationType::FP16;
-        default: throw std::runtime_error("Unsupported tensor type");
-    }
-}
+enum class GGMLType : uint32_t;
+class GGUF;
+
+QuantizationType quantization_from_gguf(const GGMLType& type);
 
 inline std::size_t quantization_size(QuantizationType type) {
     switch (type) {
