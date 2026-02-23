@@ -207,27 +207,29 @@ void Block::block_cuda_(InferenceState& s, uint32_t pos, uint32_t kv_sink, uint3
     // GQA in FlashAttention style
     // TODO: if we use FP16 for x, we could potentially leverage tensor cores? (MMA) > but need to duplicate K blocks in
     // shared memory, maybe not worth it.
+    std::string gqa = fmt::format("{}:gqa", layer_i);
     {
         constexpr uint32_t block_size = 128;
         uint32_t elems_to_process = kv_total_dim;
         uint32_t threads_needed = elems_to_process / 2;  // Each thread process 2 whole elems
         uint32_t grid_size = (threads_needed + block_size - 1) / block_size;
 
-        s.graph().add_or_update_kernel_node(rope_k_insert_cache_node, KernelDeps{calc_k},
-                                            cudaKernelNodeParams{
-                                                .func = reinterpret_cast<void*>(rope_f2h),
-                                                .gridDim = {grid_size, 1, 1},
-                                                .blockDim = {block_size, 1, 1},
-                                            },
-                                            KernelArgs{
-                                                k_cache.data() + static_cast<size_t>(kv_pos * kv_total_dim),
-                                                s.k(),
-                                                c.n_kv_heads,
-                                                c.head_dim,
-                                                pos,
-                                                c.rope_theta,
-                                                c.rotary_dim,
-                                            });
+        s.graph().add_or_update_kernel_node(
+            gqa, KernelDeps{rope_q_node, rope_k_insert_cache_node, calc_v, sink_token_rotation},
+            cudaKernelNodeParams{
+                .func = reinterpret_cast<void*>(attention),
+                .gridDim = {grid_size, 1, 1},
+                .blockDim = {block_size, 1, 1},
+            },
+            KernelArgs{
+                k_cache.data() + static_cast<size_t>(kv_pos * kv_total_dim),
+                s.k(),
+                c.n_kv_heads,
+                c.head_dim,
+                pos,
+                c.rope_theta,
+                c.rotary_dim,
+            });
     }
 
     // Transform back to [dim] and residual connection

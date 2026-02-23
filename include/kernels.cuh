@@ -22,3 +22,5 @@ __global__ void rope_f2h(half* out, const float* x, uint32_t n_heads, uint32_t h
                          uint32_t rotary_dim);
 __global__ void rope_h2h(half* out, const half* x, uint32_t n_heads, uint32_t head_dim, uint32_t pos, float theta,
                          uint32_t rotary_dim);
+
+__global__ void attention(float* o, const float* q, const half* k, const half* v, uint32_t kv_tokens);
